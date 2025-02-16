@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zw.zwplatform.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
+import com.zw.zwplatform.model.entity.Question;
 import com.zw.zwplatform.model.entity.QuestionBankQuestion;
 import com.zw.zwplatform.model.vo.QuestionBankQuestionVO;
 
@@ -17,6 +18,14 @@ import javax.servlet.http.HttpServletRequest;
  */
 public interface QuestionBankQuestionService extends IService<QuestionBankQuestion> {
 
+
+    /**
+     * 校验数据
+     *
+     * @param questionBankQuestion
+     * @param add 对创建的数据进行校验
+     */
+    void validQuestion(QuestionBankQuestion questionBankQuestion, boolean add);
     /**
      * 获取查询条件
      *
@@ -24,6 +33,7 @@ public interface QuestionBankQuestionService extends IService<QuestionBankQuesti
      * @return
      */
     QueryWrapper<QuestionBankQuestion> getQueryWrapper(QuestionBankQuestionQueryRequest questionBankQuestionQueryRequest);
-    
 
+
+    Page<Question> getQuestionPageByQuestionBankId(long id);
 }

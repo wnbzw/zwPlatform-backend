@@ -9,24 +9,24 @@ import com.zw.zwplatform.constant.CommonConstant;
 import com.zw.zwplatform.exception.ThrowUtils;
 import com.zw.zwplatform.mapper.QuestionBankQuestionMapper;
 import com.zw.zwplatform.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
+import com.zw.zwplatform.model.entity.Question;
+import com.zw.zwplatform.model.entity.QuestionBank;
 import com.zw.zwplatform.model.entity.QuestionBankQuestion;
-import com.zw.zwplatform.model.entity.User;
-import com.zw.zwplatform.model.vo.QuestionBankQuestionVO;
-import com.zw.zwplatform.model.vo.UserVO;
 import com.zw.zwplatform.service.QuestionBankQuestionService;
+import com.zw.zwplatform.service.QuestionBankService;
+import com.zw.zwplatform.service.QuestionService;
 import com.zw.zwplatform.service.UserService;
 import com.zw.zwplatform.utils.SqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -42,7 +42,48 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     @Resource
     private UserService userService;
 
+    @Resource
+    @Lazy
+    private QuestionService questionService;
 
+    @Resource
+    private QuestionBankService questionBankService;
+
+    @Override
+    public void validQuestion(QuestionBankQuestion questionBankQuestion, boolean add) {
+        ThrowUtils.throwIf(questionBankQuestion == null, ErrorCode.PARAMS_ERROR);
+        // 题目和题库必须存在
+        Long questionId = questionBankQuestion.getQuestionId();
+        if (questionId != null) {
+            Question question = questionService.getById(questionId);
+            ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR, "题目不存在");
+        }
+        Long questionBankId = questionBankQuestion.getQuestionBankId();
+        if (questionBankId != null) {
+            QuestionBank questionBank = questionBankService.getById(questionBankId);
+            ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR, "题库不存在");
+        }
+    }
+
+    @Override
+    public Page<Question> getQuestionPageByQuestionBankId(long id) {
+        QueryWrapper<QuestionBankQuestion> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("questionBankId", id);
+        List<QuestionBankQuestion> questionBankQuestionList = baseMapper.selectList(queryWrapper);
+        List<Long> questionIds= questionBankQuestionList.stream().map(QuestionBankQuestion::getQuestionId).collect(Collectors.toList());
+        // 题目ids 为空说明没有题目
+        if (CollUtil.isEmpty(questionIds)) {
+            return new Page<>();
+        }
+        /**第一种写法
+        List<Question> questions = questionService.listByIds(questionIds);
+        Page<Question> questionPage = new Page<>();
+        questionPage.setRecords(questions);
+        return questionPage;
+         */
+        //第二种写法
+        return questionService.page(new Page<>(1, 100), new QueryWrapper<Question>().in("id", questionIds));
+    }
 
     /**
      * 获取查询条件

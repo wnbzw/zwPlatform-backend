@@ -9,14 +9,18 @@ import com.zw.zwplatform.common.ResultUtils;
 import com.zw.zwplatform.constant.UserConstant;
 import com.zw.zwplatform.exception.BusinessException;
 import com.zw.zwplatform.exception.ThrowUtils;
+import com.zw.zwplatform.model.dto.question.QuestionQueryRequest;
 import com.zw.zwplatform.model.dto.questionbank.QuestionBankAddRequest;
 import com.zw.zwplatform.model.dto.questionbank.QuestionBankEditRequest;
 import com.zw.zwplatform.model.dto.questionbank.QuestionBankQueryRequest;
 import com.zw.zwplatform.model.dto.questionbank.QuestionBankUpdateRequest;
+import com.zw.zwplatform.model.entity.Question;
 import com.zw.zwplatform.model.entity.QuestionBank;
 import com.zw.zwplatform.model.entity.User;
 import com.zw.zwplatform.model.vo.QuestionBankVO;
+import com.zw.zwplatform.service.QuestionBankQuestionService;
 import com.zw.zwplatform.service.QuestionBankService;
+import com.zw.zwplatform.service.QuestionService;
 import com.zw.zwplatform.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -28,8 +32,6 @@ import javax.servlet.http.HttpServletRequest;
 /**
  * 题库接口
  *
- * @author <a href="https://github.com/lizw">程序员鱼皮</a>
- * @from <a href="https://www.code-nav.cn">编程导航学习圈</a>
  */
 @RestController
 @RequestMapping("/questionBank")
@@ -40,7 +42,11 @@ public class QuestionBankController {
     private QuestionBankService questionBankService;
 
     @Resource
+    private QuestionService questionService;
+
+    @Resource
     private UserService userService;
+
 
     // region 增删改查
 
@@ -127,17 +133,28 @@ public class QuestionBankController {
     /**
      * 根据 id 获取题库（封装类）
      *
-     * @param id
+     * @param questionBankQueryRequest
      * @return
      */
     @GetMapping("/get/vo")
-    public BaseResponse<QuestionBankVO> getQuestionBankVOById(long id, HttpServletRequest request) {
+    public BaseResponse<QuestionBankVO> getQuestionBankVOById(QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        Long id = questionBankQueryRequest.getId();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         // 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
         ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
         // 获取封装类
-        return ResultUtils.success(questionBankService.getQuestionBankVO(questionBank, request));
+        QuestionBankVO questionBankVO = questionBankService.getQuestionBankVO(questionBank, request);
+        //是否需要关联查询题目列表
+        boolean needQueryQuestionList = questionBankQueryRequest.isNeedQueryQuestionList();
+        if (needQueryQuestionList) {
+            QuestionQueryRequest questionQueryRequest = new QuestionQueryRequest();
+            questionQueryRequest.setQuestionBankId(id);
+            Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
+            questionBankVO.setQuestionPage(questionPage);
+        }
+        return ResultUtils.success(questionBankVO);
     }
 
     /**

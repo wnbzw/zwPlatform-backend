@@ -31,9 +31,6 @@ import java.util.stream.Collectors;
 
 /**
  * 题库服务实现
- *
- * @author <a href="https://github.com/lizw">程序员鱼皮</a>
- * @from <a href="https://www.code-nav.cn">编程导航学习圈</a>
  */
 @Service
 @Slf4j
@@ -57,6 +54,8 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         if (add) {
             // todo 补充校验规则
             ThrowUtils.throwIf(StringUtils.isBlank(title), ErrorCode.PARAMS_ERROR);
+            //title的长度小于80
+            ThrowUtils.throwIf(title.length() > 80, ErrorCode.PARAMS_ERROR, "标题过长");
         }
         // 修改数据时，有参数则校验
         // todo 补充校验规则
@@ -79,31 +78,24 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         }
         // todo 从对象中取值
         Long id = questionBankQueryRequest.getId();
-        Long notId = questionBankQueryRequest.getNotId();
         String title = questionBankQueryRequest.getTitle();
-        String content = questionBankQueryRequest.getContent();
+        String description = questionBankQueryRequest.getDescription();
         String searchText = questionBankQueryRequest.getSearchText();
         String sortField = questionBankQueryRequest.getSortField();
         String sortOrder = questionBankQueryRequest.getSortOrder();
-        List<String> tagList = questionBankQueryRequest.getTags();
         Long userId = questionBankQueryRequest.getUserId();
         // todo 补充需要的查询条件
         // 从多字段中搜索
         if (StringUtils.isNotBlank(searchText)) {
             // 需要拼接查询条件
-            queryWrapper.and(qw -> qw.like("title", searchText).or().like("content", searchText));
+            queryWrapper.and(qw -> qw.like("title", searchText).or().like("description", searchText));
         }
         // 模糊查询
         queryWrapper.like(StringUtils.isNotBlank(title), "title", title);
-        queryWrapper.like(StringUtils.isNotBlank(content), "content", content);
+        queryWrapper.like(StringUtils.isNotBlank(description), "description", description);
         // JSON 数组查询
-        if (CollUtil.isNotEmpty(tagList)) {
-            for (String tag : tagList) {
-                queryWrapper.like("tags", "\"" + tag + "\"");
-            }
-        }
+
         // 精确查询
-        queryWrapper.ne(ObjectUtils.isNotEmpty(notId), "id", notId);
         queryWrapper.eq(ObjectUtils.isNotEmpty(id), "id", id);
         queryWrapper.eq(ObjectUtils.isNotEmpty(userId), "userId", userId);
         // 排序规则
@@ -126,7 +118,6 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         QuestionBankVO questionBankVO = QuestionBankVO.objToVo(questionBank);
 
         // todo 可以根据需要为封装对象补充值，不需要的内容可以删除
-        // region 可选
         // 1. 关联查询用户信息
         Long userId = questionBank.getUserId();
         User user = null;
@@ -135,13 +126,6 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         }
         UserVO userVO = userService.getUserVO(user);
         questionBankVO.setUser(userVO);
-        // 2. 已登录，获取用户点赞、收藏状态
-        long questionBankId = questionBank.getId();
-        User loginUser = userService.getLoginUserPermitNull(request);
-        if (loginUser != null) {
-
-        }
-        // endregion
 
         return questionBankVO;
     }
@@ -166,17 +150,19 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         }).collect(Collectors.toList());
 
         // todo 可以根据需要为封装对象补充值，不需要的内容可以删除
-        // region 可选
         // 1. 关联查询用户信息
         Set<Long> userIdSet = questionBankList.stream().map(QuestionBank::getUserId).collect(Collectors.toSet());
         Map<Long, List<User>> userIdUserListMap = userService.listByIds(userIdSet).stream()
                 .collect(Collectors.groupingBy(User::getId));
-        // 2. 已登录，获取用户点赞、收藏状态
-        Map<Long, Boolean> questionBankIdHasThumbMap = new HashMap<>();
-        Map<Long, Boolean> questionBankIdHasFavourMap = new HashMap<>();
-        User loginUser = userService.getLoginUserPermitNull(request);
-        // endregion
-
+        //User loginUser = userService.getLoginUserPermitNull(request);
+        for (QuestionBankVO questionBankVO : questionBankVOList){
+            Long userId = questionBankVO.getUserId();
+            User user = null;
+            if (userId != null && userId > 0) {
+                user = userIdUserListMap.get(userId).get(0);
+            }
+            questionBankVO.setUser(userService.getUserVO(user));
+        }
         questionBankVOPage.setRecords(questionBankVOList);
         return questionBankVOPage;
     }

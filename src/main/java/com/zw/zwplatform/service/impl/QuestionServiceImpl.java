@@ -1,6 +1,7 @@
 package com.zw.zwplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -10,10 +11,12 @@ import com.zw.zwplatform.exception.ThrowUtils;
 import com.zw.zwplatform.mapper.QuestionMapper;
 import com.zw.zwplatform.model.dto.question.QuestionQueryRequest;
 import com.zw.zwplatform.model.entity.Question;
+import com.zw.zwplatform.model.entity.QuestionBankQuestion;
 import com.zw.zwplatform.model.entity.User;
 import com.zw.zwplatform.model.vo.QuestionVO;
 import com.zw.zwplatform.model.vo.UserVO;
 
+import com.zw.zwplatform.service.QuestionBankQuestionService;
 import com.zw.zwplatform.service.QuestionService;
 import com.zw.zwplatform.service.UserService;
 import com.zw.zwplatform.utils.SqlUtils;
@@ -42,6 +45,34 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private QuestionBankQuestionService questionBankQuestionService;
+
+
+    @Override
+    public Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest) {
+        long current = questionQueryRequest.getCurrent();
+        long size = questionQueryRequest.getPageSize();
+        QueryWrapper<Question> queryWrapper = this.getQueryWrapper(questionQueryRequest);
+        Long questionBankId = questionQueryRequest.getQuestionBankId();
+        if(questionBankId!=null ){
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper =  new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(QuestionBankQuestion::getQuestionBankId,questionBankId);
+            lambdaQueryWrapper.select(QuestionBankQuestion::getQuestionId);
+            List<QuestionBankQuestion> questionBankQuestionList = questionBankQuestionService.list(lambdaQueryWrapper);
+            // 题目id集合如果不为空，则根据题目id集合查询题目
+            if(CollUtil.isNotEmpty(questionBankQuestionList)) {
+                Set<Long> questionIds = questionBankQuestionList.stream().map(QuestionBankQuestion::getQuestionId).collect(Collectors.toSet());
+                queryWrapper.in("id", questionIds);
+            }else{
+                // 没有题目
+                return new Page<>(current,size,0);
+            }
+        }
+        // 查询所有题目
+        return this.page(new Page<>(current, size), queryWrapper);
+    }
 
     /**
      * 校验数据
@@ -80,7 +111,6 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
         // todo 从对象中取值
         Long id = questionQueryRequest.getId();
-        Long notId = questionQueryRequest.getNotId();
         String title = questionQueryRequest.getTitle();
         String content = questionQueryRequest.getContent();
         String searchText = questionQueryRequest.getSearchText();
@@ -104,7 +134,6 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             }
         }
         // 精确查询
-        queryWrapper.ne(ObjectUtils.isNotEmpty(notId), "id", notId);
         queryWrapper.eq(ObjectUtils.isNotEmpty(id), "id", id);
         queryWrapper.eq(ObjectUtils.isNotEmpty(userId), "userId", userId);
         // 排序规则

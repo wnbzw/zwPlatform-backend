@@ -10,8 +10,6 @@ import java.util.List;
 /**
  * 查询题库请求
  *
- * @author <a href="https://github.com/lizw">程序员鱼皮</a>
- * @from <a href="https://www.code-nav.cn">编程导航学习圈</a>
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -21,11 +19,6 @@ public class QuestionBankQueryRequest extends PageRequest implements Serializabl
      * id
      */
     private Long id;
-
-    /**
-     * id
-     */
-    private Long notId;
 
     /**
      * 搜索词
@@ -38,19 +31,23 @@ public class QuestionBankQueryRequest extends PageRequest implements Serializabl
     private String title;
 
     /**
-     * 内容
+     * 描述
      */
-    private String content;
+    private String description;
 
     /**
-     * 标签列表
+     * 图片
      */
-    private List<String> tags;
-
+    private String picture;
     /**
      * 创建用户 id
      */
     private Long userId;
+
+    /**
+     * 是否需要获取题目
+     */
+    private boolean needQueryQuestionList;
 
     private static final long serialVersionUID = 1L;
 }

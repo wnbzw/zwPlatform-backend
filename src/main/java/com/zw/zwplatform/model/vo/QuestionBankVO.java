@@ -1,6 +1,8 @@
 package com.zw.zwplatform.model.vo;
 
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zw.zwplatform.model.entity.Question;
 import com.zw.zwplatform.model.entity.QuestionBank;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
@@ -34,6 +36,16 @@ public class QuestionBankVO implements Serializable {
     private String content;
 
     /**
+     * 描述
+     */
+    private String description;
+
+    /**
+     * 图片
+     */
+    private String picture;
+
+    /**
      * 创建用户 id
      */
     private Long userId;
@@ -57,6 +69,11 @@ public class QuestionBankVO implements Serializable {
      * 创建用户信息
      */
     private UserVO user;
+
+    /**
+     * 题库里的题目列表
+     */
+    private Page<Question> questionPage;
 
     /**
      * 封装类转对象

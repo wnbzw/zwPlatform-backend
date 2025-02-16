@@ -15,19 +15,19 @@ import java.util.List;
 public class QuestionBankQuestionAddRequest implements Serializable {
 
     /**
-     * 标题
+     * 题库id
      */
-    private String title;
+    private Long questionBankId;
 
     /**
-     * 内容
+     * 题目id
      */
-    private String content;
+    private Long questionId;
 
     /**
-     * 标签列表
+     * 用户id
      */
-    private List<String> tags;
+    private Long userId;
 
     private static final long serialVersionUID = 1L;
 }

@@ -30,10 +30,6 @@ public class QuestionBankVO implements Serializable {
      */
     private String title;
 
-    /**
-     * 内容
-     */
-    private String content;
 
     /**
      * 描述

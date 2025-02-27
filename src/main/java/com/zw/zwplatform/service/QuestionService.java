@@ -6,8 +6,10 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.zw.zwplatform.model.dto.question.QuestionQueryRequest;
 import com.zw.zwplatform.model.entity.Question;
 import com.zw.zwplatform.model.vo.QuestionVO;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 题目服务
@@ -17,6 +19,10 @@ import javax.servlet.http.HttpServletRequest;
  */
 public interface QuestionService extends IService<Question> {
 
+
+
+    @Transactional(rollbackFor = Exception.class)
+    void batchDeleteQuestions(List<Long> questionIdList);
     /**
      * 校验数据
      *
@@ -57,4 +63,13 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest);
+
+    /**
+     * 从 ES 查询题目
+     *
+     * @param questionQueryRequest
+     * @return
+     */
+    Page<Question> searchFromEs(QuestionQueryRequest questionQueryRequest);
+
 }

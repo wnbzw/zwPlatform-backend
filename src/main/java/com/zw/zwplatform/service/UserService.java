@@ -17,6 +17,17 @@ import me.chanjar.weixin.common.bean.WxOAuth2UserInfo;
  */
 public interface UserService extends IService<User> {
 
+
+    List<Integer> getUserSignInRecord(long userId, Integer year);
+
+    /**
+     * 添加用户签到记录
+     *
+     * @param userId 用户 id
+     * @return 当前是否已签到成功
+     */
+    boolean addUserSignIn(long userId);
+
     /**
      * 用户注册
      *

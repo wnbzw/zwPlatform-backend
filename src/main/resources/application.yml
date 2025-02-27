@@ -1,4 +1,36 @@
 # 公共配置文件
+# 热 key 探测
+hotkey:
+  app-name: mianshiya
+  caffeine-size: 10000
+  push-period: 1000
+  etcd-server: http://localhost:2379
+
+nacos:
+  config:
+    server-addr: 127.0.0.1:8848
+    bootstrap:
+      enable: true #预加载
+    data-id: mianshiya #控制台填写的Data ID
+    group: DEFAULT_GROUP #控制台填写的Group
+    type: yaml # 配置文件类型
+    auto-refresh: true # 是否开启自动刷新
+
+# Sa-Token 配置
+sa-token:
+  # token 名称
+  token-name: mianshiya
+  # token 超时时间 默认 30 天
+  timeout: 2592000
+  # token 最低活跃频率（单位：秒）
+  active-timeout: -1
+  # 是否允许同一账号多设备登录
+  is-concurrent: false
+  # 在多人登录同一账号时，是否共用一个 token
+  is-share: true
+  # token 风格（默认可取值：uuid、simple-uuid、random-32、random-64、random-128、tik）
+  token-style: uuid
+  is-log: true
 spring:
   application:
     name: zwPlatform-backend
@@ -12,7 +44,7 @@ spring:
   # session 配置
   session:
     # todo 取消注释开启分布式 session（须先配置 Redis）
-    # store-type: redis
+    store-type: redis
     # 30 天过期
     timeout: 2592000
   # 数据库配置
@@ -24,16 +56,26 @@ spring:
     password: 123456
   # Redis 配置
   # todo 需替换配置，然后取消注释
-#  redis:
-#    database: 1
-#    host: localhost
-#    port: 6379
-#    timeout: 5000
-#    password: 123456
+  redis:
+    database: 1
+    host: 127.0.0.1
+    port: 6379
+    timeout: 5000
+    lettuce:
+      pool:
+        # 连接池最大连接数
+        max-active: 200
+        # 连接池最大阻塞等待时间（使用负值表示没有限制）
+        max-wait: -1ms
+        # 连接池中的最大空闲连接
+        max-idle: 10
+        # 连接池中的最小空闲连接
+        min-idle: 0
+  #  password: 123456
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
-#  elasticsearch:
-#    uris: http://localhost:9200
+  elasticsearch:
+    uris: http://localhost:9200
 #    username: root
 #    password: 123456
   # 文件上传
@@ -41,6 +83,7 @@ spring:
     multipart:
       # 大小限制
       max-file-size: 10MB
+
 server:
   address: 0.0.0.0
   port: 8101

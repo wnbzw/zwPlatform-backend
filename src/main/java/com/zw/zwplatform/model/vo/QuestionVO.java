@@ -34,6 +34,11 @@ public class QuestionVO implements Serializable {
     private String content;
 
     /**
+     * 答案
+     */
+    private String answer;
+
+    /**
      * 创建用户 id
      */
     private Long userId;
@@ -71,7 +76,7 @@ public class QuestionVO implements Serializable {
         Question question = new Question();
         BeanUtils.copyProperties(questionVO, question);
         List<String> tagList = questionVO.getTagList();
-        question.setTags(JSONUtil.toJsonStr(tagList));
+        question.setTags(JSONUtil.toJsonStr(JSONUtil.parseArray(tagList)));
         return question;
     }
 
@@ -87,7 +92,7 @@ public class QuestionVO implements Serializable {
         }
         QuestionVO questionVO = new QuestionVO();
         BeanUtils.copyProperties(question, questionVO);
-        questionVO.setTagList(JSONUtil.toList(question.getTags(), String.class));
+        questionVO.setTagList(JSONUtil.toList(JSONUtil.parseArray(question.getTags()), String.class));
         return questionVO;
     }
 }

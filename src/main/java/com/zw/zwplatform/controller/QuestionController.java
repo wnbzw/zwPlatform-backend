@@ -1,20 +1,25 @@
 package com.zw.zwplatform.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.EntryType;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.zw.zwplatform.annotation.AuthCheck;
+import com.zw.zwplatform.annotation.HotKeyCacheable;
 import com.zw.zwplatform.common.BaseResponse;
 import com.zw.zwplatform.common.DeleteRequest;
 import com.zw.zwplatform.common.ErrorCode;
 import com.zw.zwplatform.common.ResultUtils;
+import com.zw.zwplatform.constant.HotKeyConstant;
 import com.zw.zwplatform.constant.UserConstant;
 import com.zw.zwplatform.exception.BusinessException;
 import com.zw.zwplatform.exception.ThrowUtils;
-import com.zw.zwplatform.model.dto.question.QuestionAddRequest;
-import com.zw.zwplatform.model.dto.question.QuestionEditRequest;
-import com.zw.zwplatform.model.dto.question.QuestionQueryRequest;
-import com.zw.zwplatform.model.dto.question.QuestionUpdateRequest;
+import com.zw.zwplatform.model.dto.question.*;
 import com.zw.zwplatform.model.entity.Question;
 import com.zw.zwplatform.model.entity.User;
 import com.zw.zwplatform.model.vo.QuestionVO;
@@ -76,6 +81,15 @@ public class QuestionController {
         long newQuestionId = question.getId();
         return ResultUtils.success(newQuestionId);
     }
+    @PostMapping("/delete/batch")
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> batchDeleteQuestions(@RequestBody QuestionBatchDeleteRequest questionBatchDeleteRequest,
+                                                      HttpServletRequest request) {
+        ThrowUtils.throwIf(questionBatchDeleteRequest == null, ErrorCode.PARAMS_ERROR);
+        questionService.batchDeleteQuestions(questionBatchDeleteRequest.getQuestionIdList());
+        return ResultUtils.success(true);
+    }
+
 
     /**
      * 删除题目
@@ -111,7 +125,7 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateQuestion(@RequestBody QuestionUpdateRequest questionUpdateRequest) {
         if (questionUpdateRequest == null || questionUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -142,13 +156,26 @@ public class QuestionController {
      * @return
      */
     @GetMapping("/get/vo")
+    @HotKeyCacheable(keyPrefix = HotKeyConstant.Question_Key)
     public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        String key= HotKeyConstant.Question_Key+id;
+//        // 如果是热点key
+//        if(JdHotKeyStore.isHotKey(key)){
+//            QuestionVO questionVO = (QuestionVO) JdHotKeyStore.get(key);
+//            if(questionVO !=null){
+//                return ResultUtils.success(questionVO);
+//            }
+//        }
         // 查询数据库
         Question question = questionService.getById(id);
         ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
+
+        QuestionVO questionVO = questionService.getQuestionVO(question, request);
+        // 将热点数据 保存
+//        JdHotKeyStore.smartSet(key,questionVO);
         // 获取封装类
-        return ResultUtils.success(questionService.getQuestionVO(question, request));
+        return ResultUtils.success(questionVO);
     }
 
     /**
@@ -158,12 +185,39 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryRequest questionQueryRequest) {
         ThrowUtils.throwIf(questionQueryRequest == null, ErrorCode.PARAMS_ERROR);
         Page<Question> questionPage=questionService.listQuestionByPage(questionQueryRequest);
         return ResultUtils.success(questionPage);
     }
+
+    @PostMapping("/search/page/vo")
+    public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                                 HttpServletRequest request) {
+        long size = questionQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
+        Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
+        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+    }
+
+//    /**
+//     * 分页获取题目列表（封装类）
+//     *
+//     * @param questionQueryRequest
+//     * @param request
+//     * @return
+//     */
+//    @PostMapping("/list/page/vo")
+//    public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+//                                                               HttpServletRequest request) {
+//        ThrowUtils.throwIf(questionQueryRequest == null, ErrorCode.PARAMS_ERROR);
+//        Page<Question> questionPage=questionService.listQuestionByPage(questionQueryRequest);
+//        // 获取封装类
+//        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+//    }
+
 
     /**
      * 分页获取题目列表（封装类）
@@ -176,9 +230,39 @@ public class QuestionController {
     public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
                                                                HttpServletRequest request) {
         ThrowUtils.throwIf(questionQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        Page<Question> questionPage=questionService.listQuestionByPage(questionQueryRequest);
-        // 获取封装类
-        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+        //基于ip 限流
+        String remoteAddr = request.getRemoteAddr();
+        Entry entry = null;
+        try {
+            entry = SphU.entry("listQuestionVOByPage", EntryType.IN, 1, remoteAddr);
+            Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
+            // 获取封装类
+            return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+        } catch (Throwable ex) {
+            // 业务异常
+            if (!BlockException.isBlockException(ex)) {
+                Tracer.trace(ex);
+                return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
+            }
+            // 降级操作
+            if (ex instanceof DegradeException) {
+                return handleFallback(questionQueryRequest, request, ex);
+            }
+            // 限流操作
+            return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "访问过于频繁，请稍后再试");
+        } finally {
+            if (entry != null) {
+                entry.exit(1, remoteAddr);
+            }
+        }
+    }
+    /**
+     * listQuestionVOByPage 降级操作：直接返回本地数据
+     */
+    public BaseResponse<Page<QuestionVO>> handleFallback(QuestionQueryRequest questionQueryRequest,
+                                                         HttpServletRequest request, Throwable ex) {
+        // 可以返回本地数据或空数据
+        return ResultUtils.success(null);
     }
 
     /**

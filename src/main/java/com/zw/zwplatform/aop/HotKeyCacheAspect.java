@@ -27,6 +27,7 @@ public class HotKeyCacheAspect {
         // 获取注解
         HotKeyCacheable hotKeyCacheable = method.getAnnotation(HotKeyCacheable.class);
 
+        //获取注解的keyPrefix
         String keyPrefix = hotKeyCacheable.keyPrefix();
 
         //log.info("keyPrefix:{}", keyPrefix);
